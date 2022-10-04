@@ -1,0 +1,180 @@
+int one_line() :
+{}
+{
+  sum() ";"
+  {
+    return 0;
+  }
+| ";"
+  {
+    return 1;
+  }
+}
+
+void sum() :
+{}
+{
+  term()
+  (
+    (
+      < PLUS >
+    | < MINUS >
+    )
+    term()
+  )*
+}
+
+void term() :
+{}
+{
+  unary()
+  (
+    (
+      < MULTIPLY >
+    | < DIVIDE >
+    )
+    unary()
+  )*
+}
+
+void unary() :
+{}
+{
+  < MINUS > element()
+| element()
+}
+
+void element() :
+{}
+{
+  < CONSTANT >
+| "(" sum() ")"
+}
+
+//////////////////////////////////////////////////////////////
+
+SKIP :
+{
+  " "
+| "\r"
+| "\t"
+| "\n"
+}
+
+TOKEN : /* OPERATORS */
+{
+  < CLASS : "class" >
+| < EXTENDS : "extends" >
+| < SUPER : "super" >
+| < RETURN : "return" >
+| < NEW: "new" >
+| < THIS: "this" >
+| < PUNTO: "." >
+| < COMA : "," >
+| < PUNTOCOMA : ";" >
+| < ABRIRPARENTESIS : "(" >
+| < CERRARPARENTESIS : ")" >
+| < ABRIRLLAVE : " { " >
+| < CERRARLLAVE : " } " >
+| < IGUAL: "=" >
+}
+
+TOKEN :
+{
+  < INT : (< DIGIT >)+ >
+| < CHAR: (<MIN>|<MAY>|<DIGIT>)> 
+| < ID : <MIN>(<CHAR>)*>
+| < CID: <MAY>(<CHAR>)*>
+| < #DIGIT : [ "0"-"9" ] >
+| < #MAY: ["A"-"Z"] >
+| < #MIN: ["a"-"z"] >
+}
+
+
+void OBJ():
+{}
+{<CID><ID>}
+
+void R():
+{}
+{<ID>|<CID>}
+
+void A():
+{}
+{OBJ() (<COMA> OBJ())* }
+
+void classD():
+{}
+{
+  <CLASS> <CID> <EXTENDS> <CID> Block()
+}
+
+void atributo():
+{}
+{
+  OBJ()<PUNTOCOMA>
+}
+
+void Block():
+{}
+{
+  <ABRIRLLAVE> (LOOKAHEAD(2)atributo())*  (statement())* <CERRARLLAVE>
+}
+
+//Declaracion de statement ojo!!!
+void statement():
+{}
+{
+  LOOKAHEAD(2)OBJN()consB()|OBJ()<ABRIRPARENTESIS>(A())*<CERRARPARENTESIS><RETURN>F()<PUNTOCOMA>
+}
+
+void OBJN():
+{}
+{
+  <CID><ABRIRPARENTESIS>[A()]<CERRARPARENTESIS>
+}
+
+void consB():
+{}
+{
+  <ABRIRLLAVE><SUPER><ABRIRPARENTESIS><CERRARPARENTESIS><PUNTOCOMA>(put()<PUNTOCOMA>)*<CERRARLLAVE>
+}
+
+void call():
+{}
+{
+	R()<ABRIRPARENTESIS>(F()(<COMA>F())*)*<CERRARPARENTESIS>
+}
+
+void put():
+{}
+{
+ <THIS><PUNTO><ID><IGUAL>F()<PUNTOCOMA>
+}
+
+void F():
+{}
+{
+  <NEW> call() | LOOKAHEAD(2)(<ID>|<THIS>)<PUNTO>(LOOKAHEAD(2)call()|<ID>) | LOOKAHEAD(2)<ID>
+}
+
+
+/////////////////
+
+class A extends Object {
+    A () { super () ; }
+}
+
+
+////////////////
+
+class Pair extends Object {
+  Object fst;
+  Object snd;
+  Pair (Object fst , Object snd) {
+	super() ; this.fst=fst; this.snd=snd;
+  }
+  Pair setfst (Object newfst) {
+	return new Pair (newfst , this.snd); 
+  }
+}

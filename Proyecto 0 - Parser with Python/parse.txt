@@ -1,0 +1,36 @@
+comandos:
+M: to move forward
+R: to turn right
+C: to drop a chip
+B: to place a balloon
+c: to pickup a chip
+b: to grab a balloon
+P: to pop a balloon
+J(n): to jump forward n steps. 
+It may jump over obstacles, but the final postion
+sould not have an obstacle.
+G(x,y): to go to position (x,y). Position (x,y) 
+should not have an obstacle
+
+---------------------------------------------------
+
+PROG->GORP (definir programar)
+VAR->,->; (definir o declarar variables)
+PROC->proceso->()->(,)->{ } (definicion de proceso)
+ 
+----------------------------------------------------
+name := n   -> Asignacion de variables 
+
+
+
+////////////////////////////////
+import re
+import argparse
+
+expresion = open("C:/Users/SANTIAGO/OneDrive/Escritorio/LYM/PROYECTO 0/SimpleRobotInterpreter/test/test0_in.txt")
+prueba = expresion.read()
+expresion.close()
+
+parser = argparse.ArgumentParser(prog=prueba, description='Process Factory ROBOT.')
+parser.add_argument('-', '--file', help='File to be processed.')
+args = parser.parse_args()

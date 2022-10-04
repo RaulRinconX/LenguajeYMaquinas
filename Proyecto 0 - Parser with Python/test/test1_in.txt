@@ -1,0 +1,21 @@
+PROG
+
+VAR a, b;
+
+PROC f(c, x) {
+    PROC g(c, x) {
+        PROC h(c, x) { walk(c); }
+
+        { h(c, x); }
+    } CORP
+
+    { g(c, x); }
+} CORP
+
+{
+    a := 3;
+    b := 5;
+    f(a, b);
+}
+
+GORP

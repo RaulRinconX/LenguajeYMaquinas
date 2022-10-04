@@ -1,0 +1,589 @@
+/*
+Gramatica para el Robot:
+Autor: Alejandro Arango
+Modificado por: Silvia Takahashi
+Modificado por: Juan Pablo Morales.
+Agregadas producciones para manejar globos
+Modificado por Silvia Takahashi
+
+
+	PROYECTO 1 ENTREGADO POR:
+
+	Alvaro Bacca - 202121869
+	Raul Rincon - 202120414
+*/
+
+
+options 
+{
+  
+    LOOKAHEAD=1; 
+	IGNORE_CASE=true;
+	STATIC = false;
+	
+}
+   
+
+PARSER_BEGIN(Robot)
+
+package uniandes.lym.robot.control;
+
+import uniandes.lym.robot.kernel.*;
+import uniandes.lym.robot.view.Console;
+ 
+import java.awt.Point;
+import java.io.*;
+import java.util.*;
+
+@SuppressWarnings("serial")
+public class Robot 
+{
+
+	static HashMap <String, Integer> varGlobalScope;
+	// TODO: static puede joder con los scopes locales
+	private RobotWorldDec world;
+	
+	
+	void setWorld(RobotWorld w) {
+		world = (RobotWorldDec) w;
+		varGlobalScope = new HashMap <String, Integer > ();
+	}
+
+	// variable ya fue declarada
+	boolean varWasDeclared (String id) {
+		return varGlobalScope.containsKey(id);
+	}
+
+	void setVar(String key, int val) {
+		varGlobalScope[key] = val;
+	}
+
+	String salida=new String();
+}
+
+
+PARSER_END(Robot)
+
+
+SKIP: { " " | "\r" | "\t" | "\n" }
+
+TOKEN: // comandos básicos
+{
+		  <WALK:    "walk"> //existen 3 tipos de walks...(n)|(d,n)|(o,n)
+        | <JUMP:    "jump">
+        | <JUMPTO:  "jumpTo">
+        | <VEER:    "veer">
+        | <LOOK:    "look">
+        | <DROP:    "drop">
+        | <GRAB:    "grab">
+        | <GET:     "get">
+        | <FREE:    "free">
+        | <POP:		"pop" >
+        | <WALRUS: ":=">
+}
+
+
+TOKEN: // Keywords
+{
+		  <PROG: "PROG" >
+        | <GORP: "GORP">
+        | <VAR: "VAR"> // TODO: var en minúscula o mayúscula?
+        | <PROC: "PROC" >
+        | <CORP: "CORP">       	
+}
+
+TOKEN: // Orientation
+{
+		  <NORTH: "north">
+		| <SOUTH: "south">
+		| <EAST:  "east">
+		| <WEST:  "west">
+		| <RIGHT: "right">
+		| <LEFT: "left">
+		| <FRONT: "front"> 
+		| <BACK: "back">
+		| <AROUND: "around">
+}
+
+TOKEN: // Conditions to evaluate
+{
+  			<ISFACING: "isfacing">
+		 |  <ISVALID: "isValid"> 
+		 |	<CANWALK: "canWalk">
+		 |  <NOT: "not">
+}
+
+TOKEN: // Flows
+{
+		<IF: "if">
+		| <ELSE: "else" >
+		| <FI: "fi">
+
+		| < WHILE: "while" >
+		| < DO : "do" >
+		| < OD : "od" >
+
+		| < REPEAT : "repeatTimes" >
+		| < PER : "per" >
+
+		
+}
+
+TOKEN: //special characters...
+{
+	    <COMA: ",">
+	 |  <LP: "(">
+	 |  <RP: ")">
+	 |  <LCORCH: "{">
+	 |  <RCORCH: "}">
+	 |  <PUNTOCOMA: ";">
+}
+
+
+TOKEN :
+{
+		  < NUM: (<DIGIT>)+ >
+        | < ID: (<MIN>)(< MIN > | < MAY > | < DIGIT >)* > 
+		| <#DIGIT: ["0"-"9"] >
+		| <#MAY: ["A"-"Z"] >
+		| <#MIN: ["a"-"z"] >
+}
+
+
+/*
+	Símbolo inicial
+*/
+boolean simpleInstruct(Console sistema, HashMap < String, Integer > ls):
+{
+	int x, y;
+	String salida = new String();
+}
+{
+  	(
+		(
+		  salida = jump(ls)
+		| salida = jumpTo(ls)
+		| salida = veer(ls)
+		| salida = look(ls)
+		| salida = drop(ls)
+		| salida = grab(ls)
+		| salida = get(ls)
+		| salida = free(ls)
+		| salida = pop(ls)
+		//| (LOOKAHEAD(walk())) | (LOOKAHEAD(walkD())) | (LOOKAHEAD(3) walkO())
+		| salida = assignment(varGlobalScope)
+		) ";"
+	{
+	    try {
+    			 Thread.sleep(500);
+    	    } catch (InterruptedException e) {
+    			        System.err.format("IOException: %s%n", e);
+    			}
+    			 
+		sistema.printOutput(salida + "\n"); // TODO: quitar nueva linea quizás?
+		return true;
+	}
+	)
+
+	| < EOF > { return false; } 
+}
+
+// inicializador
+boolean command(Console sistema): { String salida; }
+{
+  	(S0(sistema) { return true; })
+  	| (< EOF > { return false; })
+}
+
+boolean blockInstruct(Console sistema, HashMap < String, Integer > ls):
+{
+  	boolean posible = true, res;
+}
+{
+	< LCORCH >
+	(res=simpleInstruct(sistema, ls) {
+		posible = posible && res; // TODO: qué exactamente devuelve? 
+	})*
+	< RCORCH >
+	{
+	  return posible;
+	}
+}
+
+
+// símbolo inicial
+void S0(Console sistema): { String salida; }
+{
+	< PROG >
+	{
+	sistema.printOutput("EMPIEZA PROGRAMA\n");
+	}
+	(varDeclaration(sistema, varGlobalScope))?
+	(procDefinition(sistema, varGlobalScope))*
+	blockInstruct(sistema, varGlobalScope) < GORP >
+	{
+	sistema.printOutput("FINALIZA PROGRAMA\n");
+	}
+	//< PROG > blockInstruct(sistema) < GORP >
+}
+
+
+
+/*
+	Comandos básicos
+*/
+int numero(HashMap <String, Integer > ls): { String cad; int total; }
+{
+	<NUM>
+	{
+		try
+		{
+			total = Integer.parseInt(token.image);
+			return total;
+		}
+		catch (NumberFormatException ee)
+		{ throw new Error("Numero demasiado grande: "+token.image+"!!"); }
+	}
+	| < ID > {
+	  	cad = token.image;
+
+		if (ls.containsKey(cad)) {
+			total = ls.get(cad);
+			if (total == -1) {
+				throw new Error(cad + " es una función");
+			}
+			else { return total; }
+		}
+		else {
+			throw new Error("Variable " + cad + " no ha sido declarada");
+		}
+	} 
+}
+
+
+String jump(HashMap < String, Integer > ls): { String retorno; int x; }
+{
+	< JUMP > < LP > x=numero(ls) < RP >
+	{
+		world.moveForward(x, true);
+		retorno = "jump(" + x + ")"; // TODO: problemas por implicit typecast ?
+		return retorno;
+	}
+}
+
+
+String jumpTo(HashMap < String, Integer > ls): { String retorno; int x, y; }
+{
+	< JUMPTO > < LP > x=numero(ls) < COMA > y=numero(ls) < RP >
+	{
+	 	world.setPostion(x,y);
+	 	retorno = "jumpTo(" + x + "," + y + ")";
+	 	return retorno;
+	}
+}
+
+
+String veer(HashMap < String, Integer > ls): { Token t; String retorno, d; }
+{
+	< VEER > < LP > (< LEFT > | < RIGHT > | < AROUND >) { d = token.image; } < RP >
+	{
+		if (d.equals("left")) {
+			world.turnRight();
+			world.turnRight();
+			world.turnRight();
+		}
+		else if (d.equals("right")) {
+			world.turnRight();
+		}
+		else {
+			world.turnRight();
+			world.turnRight();
+		}
+
+		retorno = "veer(" + d + ")";
+		return retorno;
+	}
+}
+
+
+String look(HashMap < String, Integer > ls): { String retorno, dir; }
+{
+	< LOOK > < LP > (<NORTH>|<WEST>|<SOUTH>|<EAST>) { dir = token.image; } < RP >
+	{	
+	    switch(dir) {
+	     case "west" : 
+	      	while (!world.facingWest()) { 
+	      	world.turnRight(); }
+	      	break;
+	     case "south" :
+	      	while (!world.facingSouth()) { 
+	      	world.turnRight(); }
+	      	break;	
+	   	 case "north" :
+	     	 while (!world.facingNorth()) { 
+	     	 world.turnRight(); }
+	         break;   
+	     case "east" :
+	     	while (!world.facingEast()) { 
+	     	world.turnRight(); }
+	      	break;
+	     }
+
+		 retorno = "look(" + dir + ")";
+		 return retorno;
+	}
+}
+
+
+String drop(HashMap < String, Integer > ls): { String retorno; int n; }
+{
+	< DROP > < LP > n=numero(ls) < RP >
+	{
+		for (int i=0; i<n; i++) {
+			world.putChip();
+		}
+		
+		retorno = "drop(" + n + ")";
+		return retorno;
+	}
+}
+
+
+String grab(HashMap < String, Integer > ls): { String retorno; int n; }
+{
+	< GRAB > < LP > n=numero(ls) < RP >
+	{
+	  	for (int i=0; i<n; i++) {
+	  		world.pickupBalloon();
+	  	}
+		retorno = "grab("+n+")";
+		return retorno;
+	}
+}
+
+
+String get(HashMap < String, Integer > ls): { String retorno; int n; } // n is num of chips to pick
+{
+	< GET > < LP > n=numero(ls) < RP >
+	{
+		for (int i=0; i<n; i++) {
+	  		world.pickupChip();
+	  	} 
+		retorno = "get("+n+")";
+		return retorno;
+	}
+}
+
+
+String free(HashMap < String, Integer > ls): { String retorno; int n; } //where n is a number or a variable or a parameter. The Robot should put n balloons from its position.
+{
+	< FREE > < LP > n=numero(ls) < RP >
+	{
+		for (int i=0; i<n; i++) {
+	  		world.putBalloon();
+	  	} 
+		retorno = "free("+n+")"; 
+		return retorno;
+	}
+}
+
+
+String pop(HashMap < String, Integer > ls): { String retorno; int n; } // where n is a number or a variable or a parameter. The Robot should pop n balloons from its position.
+{
+	< POP > < LP > n=numero(ls) < RP >
+	{
+		for (int i=0; i<n; i++) {
+			world.popBalloon();
+		}
+		
+		retorno = "pop("+n+")";
+		return retorno;
+	}
+}
+
+
+String walk(HashMap < String, Integer > ls): { String retorno; int x; }
+{
+	< WALK > < LP > x=numero(ls) < RP >
+	{
+		world.moveForward(x, false);
+		retorno = "walk("+x+")";
+		return retorno;
+	}
+}
+
+
+String walkD(HashMap < String, Integer > ls): { String retorno, direction; int n; }
+{	< WALK > < LP > (<FRONT>|<RIGHT>|<LEFT>|<BACK>) { direction=token.image; }
+	< COMA > n=numero(ls) <RP>
+	
+	{
+		if (direction.equals("front")) {
+		  world.moveVertically(n, false);
+		}
+		else if (cadena.equals("left")) {
+		  world.moveHorizontally(-n, false);
+		}
+		else if (cadena.equals("back")) {
+		  world.moveVertically(-n, false);
+		}
+		else if (cadena.equals("right")) {
+		  world.moveHorizontally(n, false);
+		}
+ 	
+		retorno = "walk("+direction+","+n+")";
+		return retorno;
+	}
+}
+
+
+String walkO(HashMap < String, Integer > ls): { String retorno, orientation; int n; }
+{
+	< WALK > < LP > (<NORTH>|<WEST>|<SOUTH>|<EAST>) {orientation=token.image;}
+	< COMA > n=numero(ls) < RP >
+	{
+	if (direction.equals("north")) 
+		{world.moveVertically(n, false);}
+	else if (cadena.equals("west"))
+		{world.moveHorizontally(-n, false);}
+	else if (cadena.equals("south")) 
+		{world.moveVertically(-n, false);}
+	else if (cadena.equals("east")) 
+		{world.moveHorizontally(n, false); }
+		
+	retorno = "walk("+orientation+","+n+")";
+	return retorno;
+	}
+}
+
+
+/*
+	Estructuras que requieren más semántica
+*/
+
+
+void varDeclaration(Console sistema, HashMap < String, Integer > ls): // TODO : qué devuelve?
+{ String candidateID, retorno = ""; }
+{
+	< VAR > < ID > {
+		candidateID = token.image;
+		if (ls.containsKey(candidateID)) {
+			retorno += "Doble declaración '" + candidateID + "'\n";
+		}
+		else {
+		  	ls.put(candidateID, null);
+			retorno += "VAR '" + candidateID + "' declarada\n";
+		}
+	}
+	(< COMA > < ID > {
+		candidateID = token.image;
+		if (ls.containsKey(candidateID)) {
+			retorno += "Doble declaración '" + candidateID + "'\n";
+		}
+		else {
+		  	ls.put(candidateID, null);
+			retorno += "VAR '" + candidateID + "' declarada\n";
+		}
+	}
+	)* < PUNTOCOMA >
+	{
+		sistema.printOutput(retorno);
+	}
+}
+
+
+String assignment(HashMap < String, Integer > ls): { String candidateID, retorno = ""; int x; }
+{
+	< ID > { candidateID = token.image;	} < WALRUS > x=numero(ls)
+	{
+		if (ls.containsKey(candidateID)) {
+			ls.put(candidateID, x);
+			retorno = candidateID + " := " + x;
+		}
+		else {
+			retorno = candidateID + " no ha sido declarada";
+		}
+
+		return retorno;
+	}
+}
+
+
+HashMap < String, Integer > procName(Console sistema, HashMap < String, Integer > ls): // se pasa por argumento? No se puede coger global del anterior?
+{ String candidateID, retorno = ""; }
+{
+ 	<ID>
+ 	{
+		candidateID = token.image;
+		if (ls.containsKey(candidateID)) {
+			retorno += "Doble declaración '" + candidateID + "'\n";
+		}
+		else {
+		  	ls.put(candidateID, -1);
+			retorno += "FUN '" + candidateID + "' declarada\n";
+		}
+ 	}
+ 	<LP>(<ID>
+ 	{
+		candidateID = token.image;
+		if (ls.containsKey(candidateID)) {
+			retorno += "Doble declaración '" + candidateID + "'\n";
+		}
+		else {
+		  	ls.put(candidateID, null);
+			retorno += "PARAM '" + candidateID + "' declarada\n";
+		}
+ 	}
+ 	(<COMA><ID>
+ 	{
+		candidateID = token.image;
+		if (ls.containsKey(candidateID)) {
+			retorno += "Doble declaración '" + candidateID + "'\n";
+		}
+		else {
+		  	ls.put(candidateID, null);
+			retorno += "PARAM '" + candidateID + "' declarada\n";
+		}
+ 	}
+ 	)*)?<RP>
+ 	{
+		sistema.printOutput(retorno);
+		return ls;
+ 	}
+
+}
+
+void procDefinition(Console sistema, HashMap < String, Integer > ls):
+{ String msj; HashMap < String, Integer > new_ls; }
+{
+	< PROC > { sistema.printOutput("Declarando procedimiento...\n"); }
+	new_ls = procName(sistema, ls) { msj = token.image; }
+	blockInstruct(sistema, new_ls) < CORP >
+}
+
+
+/*
+	Escrito, no implementado
+*/
+
+/*
+
+void controlStructure():
+{}
+{
+	<IF>condition()blockInstructions()<FI>
+|	<IF>condition()blockInstructions()<ELSE>blockInstructions()<FI>
+|	<WHILE>condition()<DO>blockInstructions()<OD>
+|	<REPEAT><NUM>blockInstructions()<PER><PUNTOCOMA>
+}
+
+void condition():
+{}
+{
+	<ISFACING><LP>(<NORTH>|<WEST>|<SOUTH>|<EAST>)<RP>
+|	<ISVALID><LP>comando()<NUM><RP> //It is true if ins(n) can be executed without error.
+|	<CANWALK><LP>(<NORTH>|<WEST>|<SOUTH>|<EAST>)<RP>
+|	<NOT><LP>condition()<RP>
+}
+
+*/

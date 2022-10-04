@@ -1,0 +1,9 @@
+• move(n): to move forward n steps
+• right(): to turn right
+• Put(chips, n): to drop n chips
+• Put(balloons, n): to place n balloons
+• Pick(chips, n): to pickup n chips
+• Pick(balloons, n): to grab n balloons
+• Pop(n): to pop n balloons
+• Hop(n): To jump n positions forward
+• Go(x, y): To go to position x, y
