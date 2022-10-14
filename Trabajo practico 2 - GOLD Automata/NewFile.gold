@@ -1,0 +1,42 @@
+using gold.structures.automaton.*
+using gold.visualization.automaton.*
+using gold.structures.list.*
+procedure main(args:String[]) begin
+	testPerm(createAutomaton())
+end
+
+//  procedure to test the automata without the graphical interface 
+procedure testPerm(C:IAutomaton) begin
+ 	var sc:java.util.Scanner(System.$in)
+ 	var  string: String
+   	
+     
+   	print  "Testing"
+
+	while true do
+		print "----------------------------"
+		print "Enter a string:"
+		string:=sc.nextLine()
+		if string = "STOP" then  break end
+		result:=C.acceptsString(string)
+		print "The string was "+(result?"accepted":"REJECTED") 
+	end
+	print "End test"
+ 
+end
+// LAS VARIABLES SOLO SE PUEDEN USAR UNA VEZ!!!
+function createAutomaton():IAutomaton begin
+	A:= ('a'‥'z')
+	B:= (-∞‥∞)
+	Q:= {'a'}
+	Σ:= A∪B∪{'V','A','P','M','S','D','(',')',','}
+	q₀:=⟨'a'⟩
+	F:= {'a'}
+	M:=GDeterministicAutomaton(Q,Σ,q₀,F)
+	
+	return M
+end
+
+function () begin
+
+
