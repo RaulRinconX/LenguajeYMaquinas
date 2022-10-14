@@ -1,0 +1,70 @@
+using gold.structures.automaton.*
+using gold.visualization.automaton.*
+using gold.structures.list.*
+procedure main(args:String[]) begin
+	testPerm(createAutomaton())
+end
+
+//  procedure to test the automata without the graphical interface 
+procedure testPerm(C:IAutomaton) begin
+ 	var sc:java.util.Scanner(System.$in)
+ 	var  string: String
+   	
+     
+   	print  "Testing"
+
+	while true do
+		print "----------------------------"
+		print "Enter a string:"
+		string:=sc.nextLine()
+		if string = "STOP" then  break end
+		result:=C.acceptsString(string)
+		print "The string was "+(result?"accepted":"REJECTED") 
+	end
+	print "End test"
+ 
+end
+
+function createAutomaton():IAutomaton begin
+	A:= ('a'‥'g')
+	Q:= {⟨S,T,state⟩| S in ℘(A), T in ℘(A), state in (0‥2)}∪{0}
+	Σ:= A∪{'$','='}
+	q₀:=⟨Ø,Ø,0⟩
+	F:= {⟨S,T,state⟩|S in {Ø}, T in ℘(A), state in {2}}
+	M:=GDeterministicAutomaton(Q,Σ,q₀,F,delta)
+	
+	return M
+end
+function delta(s, t) begin
+	return 0
+end
+function delta(⟨S,T,state⟩, next) begin
+	if state == 0 then
+		if next∈S then 
+			return 0
+		elseif next∈('a'‥'g')then
+			return ⟨S∪{next},T,state⟩
+		elseif next == '$' then
+			return ⟨S,T,1⟩
+		else
+			return 0	
+		end
+	elseif state == 1 then
+		if next∈T then 
+			return 0
+		elseif next∈('a'‥'g')then
+			return ⟨S\{next},T∪{next},state⟩
+		elseif next == '=' then
+			return ⟨S,T,2⟩
+		else
+			return 0	
+		end
+	elseif state == 2 then
+		if next∈('a'‥'g') && next∈S && next∉T then
+			return ⟨S\{next},T,state⟩
+		else
+			return 0	
+		end
+	end
+	return 0
+end
